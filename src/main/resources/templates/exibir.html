@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns="w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <head>
+        <title>Venda</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KK94CHFLLe+nY2dmCWGMq91rCGa5gtU4mk92HdvYe+M/SXH301p5ILy+dN9+nJOZ" crossorigin="anonymous">
+    </head>
+    <body>
+        
+        <div class="container mt-4">
+        <h1>Venda do Produto</h1>
+        <p><strong>ID:</strong> <span th:text="${revista.id}"></span></p>
+        <p><strong>Produto:</strong> <span th:text="${revista.produto}"></span></p>
+        <p><strong>Quantidade em Estoque:</strong> <span th:text="${revista.quantidade}"></span></p>
+        <p><strong>Valor Unitário: R$</strong> <span th:text="${revista.valor}"></span></p>
+
+        <form th:action="@{/gravar-venda}" method="POST" th:object="${venda}" onsubmit="return redirecionar()">
+            <input type="hidden" th:field="*{revista.id}" th:name="revistaId">
+            <input type="hidden" id="valorUnitario" th:value="${revista.valor}">
+            <div class="mb-3">
+                <label for="qtdVenda" class="form-label">Quantidade a Vender:</label>
+                <input type="number" id="qtdVenda" th:name="qtdVenda" class="form-control" 
+                       th:field="*{qtdVenda}" min="1" 
+                       oninput="calcularTotal()" required>
+            </div>
+            <div class="mb-3">
+                <label for="total" class="form-label">Total: R$</label>
+                <input type="text" id="total" class="form-control" readonly>
+            </div>
+            <button type="submit" class="btn btn-primary">Vender</button>
+        </form>
+
+        <hr>
+        <a th:href="@{/listagem}">
+            <button type="button" class="btn btn-secondary">Voltar</button>
+        </a>
+    </div>
+
+    <script>
+        function calcularTotal() {
+            const quantidade = parseFloat(document.getElementById('qtdVenda').value) || 0;
+            const valorUnitario = parseFloat(document.getElementById('valorUnitario').value) || 0;
+            const total = quantidade * valorUnitario;
+            document.getElementById('total').value = total.toFixed(2);
+        }
+    </script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ENjdO4Dr2bkBIFxQpeoTz1HIcje39Wm4jDKdf19U8gI4ddQ3GYNS7NTKfAdVQSZe" crossorigin="anonymous">
+    </body>
+</html>

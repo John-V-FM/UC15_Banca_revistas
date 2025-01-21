@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns="w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <head>
+        <title>Inicio</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        
+        <img th:src="@{/images/logo.png}">
+        <h1>Cadastro e Vendas de Revistas</h1>
+        
+        <nav>
+            <a th:href="@{/inicio}">Início</a> |
+            <a th:href="@{/cadastrar}">Cadastrar Produto</a> |
+            <a th:href="@{/listagem}">Listagem dos Produtos</a>
+        </nav>
+    </body>
+</html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns="w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <head>
+        <title>Cadastro</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <h1 th:if="${revista.id}">Alteração do Produto</h1>
+        <h1 th:unless="${revista.id}">Cadastro do Produto</h1>
+        
+        <form th:action="@{/gravar}" method="POST" th:object="${revista}">
+            <p>Produto:<input type="text" th:field="${revista.produto}"></p>
+            <p>Quantidade:<input type="text" th:field="${revista.quantidade}"></p>
+            <p>Valor: R$ <input type="text" th:field="${revista.valor}"></p>
+            <input type="hidden" th:field="${revista.id}">
+            <p><input type="submit" value="Enviar"></p>
+        </form>
+        
+        <a th:href="@{/inicio}">Retornar</a>
+    </body>
+</html>
