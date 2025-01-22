@@ -1,21 +1,30 @@
 package com.pi.banca.controller;
 
+import com.pi.banca.model.Preferencia;
 import com.pi.banca.model.Revista;
 import com.pi.banca.model.Venda;
-import java.util.ArrayList;
-import java.util.List;
+import com.pi.banca.service.RevistaService;
+import com.pi.banca.service.VendaService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.ModelAndView;
 
 @Controller
 public class RevistaController {
     
-    private List<Revista> listaRevista = new ArrayList<>();
-    private List<Venda> listaVenda = new ArrayList<>();
+    @Autowired
+    RevistaService revistaService;
+    
+    @Autowired
+    VendaService vendaService;
     
     @GetMapping("/login")
     public String loginForm(Model model) {
@@ -34,6 +43,16 @@ public class RevistaController {
         }
     }
     
+    @PostMapping("/preferencias")
+    public ModelAndView gravarPreferencias(@ModelAttribute Preferencia pref,HttpServletResponse response){
+        Cookie cookiePrefEstilo = new Cookie("pref-estilo",pref.getEstilo());
+        cookiePrefEstilo.setDomain("localhost");
+        cookiePrefEstilo.setHttpOnly(true);
+        cookiePrefEstilo.setMaxAge(86400);
+        response.addCookie(cookiePrefEstilo);
+        return new ModelAndView("redirect:/inicio");
+    }
+    
     @GetMapping("/")
     public String inicio() {
         return "redirect:/login"; // Redireciona para a tela de login
@@ -41,7 +60,8 @@ public class RevistaController {
 
 
     @GetMapping("/inicio")
-    public String inicioIndex(){
+    public String inicioIndex(@CookieValue(name="pref-estilo", defaultValue="claro")String tema, Model model){
+        model.addAttribute("css", tema);
         return "index";
     }
     
@@ -55,52 +75,48 @@ public class RevistaController {
     public String formulario(@ModelAttribute Revista revista, Model model){
         
         if(revista.getId()!= null){
-          for(Revista r: listaRevista){
-            if(r.getId()== revista.getId()){
-               r.setProduto(revista.getProduto());
-               r.setQuantidade(revista.getQuantidade());
-               r.setValor(revista.getValor());
-               break;
-            }
-          }
+            revistaService.atualizar(revista.getId(), revista);
         }else{
-            revista.setId(listaRevista.size() + 1);
-            listaRevista.add(revista);
+            revistaService.criar(revista);
         }
         return "redirect:/listagem";
     }
     
     @GetMapping("/listagem")
     public String listaForm(Model model){
-        model.addAttribute("lista", listaRevista);
+        model.addAttribute("lista", revistaService.buscarTodos());
         return "listagem";
     }
     
     @GetMapping("/exibir")
     public String exibir(Model model, @RequestParam String id) {
-        Integer idRevista = Integer.parseInt(id);
+        try {
+            Integer idRevista = Integer.parseInt(id);
 
-        Revista revistaEncontrada = revistaPorId(idRevista);
-        if (revistaEncontrada == null) {
+            // Busca a revista pelo ID
+            Revista revistaEncontrada = revistaService.buscarPorId(idRevista);
+
+            Venda venda = new Venda();
+            venda.setRevista(revistaEncontrada);
+
+            model.addAttribute("revista", revistaEncontrada);
+            model.addAttribute("venda", venda);
+
+            return "exibir";
+        } catch (NumberFormatException e) {
+            model.addAttribute("error", "ID inválido.");
+            return "redirect:/listagem";
+        } catch (RuntimeException e) {
             model.addAttribute("error", "Revista não encontrada.");
             return "redirect:/listagem";
         }
-
-        Venda venda = new Venda();
-        venda.setRevista(revistaEncontrada);
-
-        model.addAttribute("revista", revistaEncontrada);
-        model.addAttribute("venda", venda);
-
-        return "exibir";
     }
     
     @GetMapping("/alterar-revista")
     public String alterarRevista(Model model, @RequestParam String id){
         
        Integer idRevista = Integer.parseInt(id); 
-       model.addAttribute("revista", revistaPorId(idRevista));
-       
+       model.addAttribute("revista", revistaService.buscarPorId(idRevista));
        return "cadastro";
     }
     
@@ -108,45 +124,46 @@ public class RevistaController {
     public String excluirRevista(Model model, @RequestParam String id){
         
        Integer idRevista = Integer.parseInt(id);
-       
-       Revista registroEncontrado = new Revista();
-       listaRevista.remove(revistaPorId(idRevista));
-       
+       revistaService.excluir(idRevista);
        return "redirect:/listagem";
     }
     
     @PostMapping("/gravar-venda")
-    public String formulario(@ModelAttribute Venda venda, Model model) {
-    
-        Revista revista = revistaPorId(venda.getRevista().getId());
+    public String formularioVenda(@ModelAttribute Venda venda, Model model) {
+        try {
+            // Busca a revista no banco de dados
+            Revista revista = revistaService.buscarPorId(venda.getRevista().getId());
 
-        if (revista == null || venda.getQtdVenda() <= 0 || venda.getQtdVenda() > revista.getQuantidade()) {
-            model.addAttribute("error", "Quantidade de venda inválida.");
-            model.addAttribute("revista", revista);
-            model.addAttribute("venda", venda);
-            return "exibir";
-        }
+            // Validação da quantidade de venda
+            if (venda.getQtdVenda() <= 0 || venda.getQtdVenda() > revista.getQuantidade()) {
+                model.addAttribute("error", "Quantidade de venda inválida.");
+                model.addAttribute("revista", revista);
+                model.addAttribute("venda", venda);
+                return "exibir";
+            }
 
-        int novaQuantidade = revista.getQuantidade() - venda.getQtdVenda();
-        if (novaQuantidade <= 0) {
-            listaRevista.remove(revista);
-        } else {
+            // Atualiza o estoque da revista
+            int novaQuantidade = revista.getQuantidade() - venda.getQtdVenda();
             revista.setQuantidade(novaQuantidade);
-        }
 
-        listaVenda.add(venda);
+            // Remove a revista da lista se a quantidade chegar a zero
+            if (novaQuantidade == 0) {
+                revistaService.excluir(revista.getId());
+            } else {
+                revistaService.atualizar(revista.getId(), revista);
+            }
 
-        return "redirect:/listagem";
-    }
-    
-    public Revista revistaPorId(Integer idRevista){
-        Revista registroEncontrado = new Revista();
-        for(Revista r: listaRevista){
-           if(r.getId()== idRevista){
-               registroEncontrado = r;
-               break;
-           }
+            // Calcula o valor total da venda
+            float total = venda.getQtdVenda() * revista.getValor();
+            venda.setTotal(total);
+
+            // Salva a venda no banco de dados
+            vendaService.criar(venda);
+
+            return "redirect:/listagem";
+        } catch (RuntimeException e) {
+            model.addAttribute("error", "Erro ao processar a venda.");
+            return "redirect:/listagem";
         }
-        return registroEncontrado;
     }
 }
